@@ -22,7 +22,7 @@ def calcular_setores(image, num_setores):
         setor = arr[:, start:end]
         soma = np.sum(setor)
         total = setor.size * 255
-        porcentagem = round((soma / total) * 100, 1)
+        porcentagem = round(100 - (soma / total) * 100, 1)  # ← CORREÇÃO APLICADA
         porcentagens.append(porcentagem)
     return porcentagens
 
@@ -77,7 +77,7 @@ if pdf_file and st.button("Analisar"):
         cores = ["#00bcd4", "#e91e63", "#ffeb3b", "black"]
 
         for nome, canal, cor in zip(nomes, canais, cores):
-            inverso = Image.eval(canal, lambda x: 255 - x)  # fundo branco
+            inverso = Image.eval(canal, lambda x: 255 - x)
             porcentagens = calcular_setores(inverso, n)
             resultado = desenhar_imagem(inverso, porcentagens)
             st.image(resultado, caption=f"Canal {nome}", use_container_width=True)
