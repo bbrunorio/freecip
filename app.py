@@ -46,4 +46,46 @@ def desenhar_imagem(base_img, porcentagens):
         texto = f"{pct}%"
         try:
             bbox = draw.textbbox((0, 0), texto, font=font)
-            tw, th = bbox[2] - bb
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        except:
+            tw, th = draw.textsize(texto, font=font)
+        draw.text((x + (sector_w - tw) // 2, h - th - 10), texto, fill="blue", font=font)
+    return img_color
+
+if pdf_file and st.button("Analisar"):
+    pdf_bytes = pdf_file.read()
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page = doc.load_page(0)
+
+    if mode == "Preto (K)":
+        pix = page.get_pixmap(dpi=200)
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples).convert("L")
+        porcentagens = calcular_setores(img, n)
+        resultado = desenhar_imagem(img, porcentagens)
+        st.image(resultado, caption="Canal Preto (K)", use_container_width=True)
+
+        img_buf = io.BytesIO()
+        resultado.save(img_buf, format="PNG")
+        img_buf.seek(0)
+        st.download_button("🖼️ Baixar PNG do Preto", img_buf, file_name="preto_k.png", mime="image/png")
+
+    else:
+        pix = page.get_pixmap(dpi=200, colorspace=fitz.csCMYK)
+        img = Image.frombytes("CMYK", [pix.width, pix.height], pix.samples)
+        canais = img.split()
+        nomes = ["Ciano", "Magenta", "Amarelo", "Preto"]
+        cores = ["#00bcd4", "#e91e63", "#ffeb3b", "black"]
+
+        for nome, canal, cor in zip(nomes, canais, cores):
+            porcentagens = calcular_setores(canal, n)
+
+            # Inverte a imagem para fundo branco
+            inverso = Image.eval(canal, lambda x: 255 - x)
+
+            resultado = desenhar_imagem(inverso, porcentagens)
+            st.image(resultado, caption=f"Canal {nome}", use_container_width=True)
+
+            img_buf = io.BytesIO()
+            resultado.save(img_buf, format="PNG")
+            img_buf.seek(0)
+            st.download_button(f"🖼️ Baixar PNG do {nome}", img_buf, file_name=f"{nome.lower()}.png", mime="image/png")
