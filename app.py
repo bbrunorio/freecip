@@ -4,6 +4,9 @@ import numpy as np
 import io
 import csv
 import fitz  # PyMuPDF
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 
 st.set_page_config(page_title="Analisador de Tinteiro Offset", layout="wide")
 st.title("🖨️ Analisador de Tinteiro Offset")
@@ -38,7 +41,7 @@ if st.button("Analisar") and pdf_file:
         # Fonte com tamanho fixo grande para garantir legibilidade
         try:
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            font_size = 60  # Fixo para melhor leitura
+            font_size = 60
             font = ImageFont.truetype(font_path, font_size)
         except:
             font = ImageFont.load_default()
@@ -55,15 +58,25 @@ if st.button("Analisar") and pdf_file:
                 text_w, text_h = draw.textsize(text, font=font)
             draw.text((x + (sector_w - text_w) // 2, h - text_h - 10), text, fill="blue", font=font)
 
-        # Mostrar imagem com layout atualizado
+        # Mostrar imagem
         st.image(out, caption="Resultado com setores e porcentagens", use_container_width=True)
 
-        # Gerar PDF para download
-        buf = io.BytesIO()
-        out.save(buf, format="PDF")
-        st.download_button("📥 Baixar resultado em PDF", buf.getvalue(), file_name="analise_tinteiro.pdf")
+        # Salvar imagem em buffer PNG
+        img_buf = io.BytesIO()
+        out.save(img_buf, format="PNG")
+        img_buf.seek(0)
 
-        # Gerar CSV para download
+        # Gerar PDF real com ReportLab
+        pdf_buf = io.BytesIO()
+        c = canvas.Canvas(pdf_buf, pagesize=A4)
+        width, height = A4
+        img_reader = ImageReader(img_buf)
+        c.drawImage(img_reader, 0, 0, width=width, height=height, preserveAspectRatio=True, anchor='c')
+        c.showPage()
+        c.save()
+        st.download_button("📥 Baixar resultado em PDF", pdf_buf.getvalue(), file_name="analise_tinteiro.pdf")
+
+        # Gerar CSV
         csv_buf = io.StringIO()
         writer = csv.writer(csv_buf)
         writer.writerow(["Setor", "Preenchimento Preto (%)"])
