@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import io
 import fitz  # PyMuPDF
@@ -20,9 +20,9 @@ def calcular_setores(image, num_setores):
         start = i * sector_w
         end = w if i == num_setores - 1 else (i + 1) * sector_w
         setor = arr[:, start:end]
-        preto = np.sum(255 - setor)
+        soma = np.sum(setor)
         total = setor.size * 255
-        porcentagem = round((preto / total) * 100, 1)
+        porcentagem = round((soma / total) * 100, 1)
         porcentagens.append(porcentagem)
     return porcentagens
 
@@ -77,11 +77,8 @@ if pdf_file and st.button("Analisar"):
         cores = ["#00bcd4", "#e91e63", "#ffeb3b", "black"]
 
         for nome, canal, cor in zip(nomes, canais, cores):
-            porcentagens = calcular_setores(canal, n)
-
-            # Inverte a imagem para fundo branco
-            inverso = Image.eval(canal, lambda x: 255 - x)
-
+            inverso = Image.eval(canal, lambda x: 255 - x)  # fundo branco
+            porcentagens = calcular_setores(inverso, n)
             resultado = desenhar_imagem(inverso, porcentagens)
             st.image(resultado, caption=f"Canal {nome}", use_container_width=True)
 
