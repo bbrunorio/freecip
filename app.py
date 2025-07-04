@@ -4,9 +4,6 @@ import numpy as np
 import io
 import csv
 import fitz  # PyMuPDF
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
 
 st.set_page_config(page_title="Analisador de Tinteiro Offset", layout="wide")
 st.title("🖨️ Analisador de Tinteiro Offset")
@@ -58,7 +55,7 @@ if st.button("Analisar") and pdf_file:
                 text_w, text_h = draw.textsize(text, font=font)
             draw.text((x + (sector_w - text_w) // 2, h - text_h - 10), text, fill="blue", font=font)
 
-        # Exibir imagem processada
+        # Mostrar imagem final
         st.image(out, caption="Resultado com setores e porcentagens", use_container_width=True)
 
         # Salvar imagem em buffer PNG
@@ -66,22 +63,12 @@ if st.button("Analisar") and pdf_file:
         out.save(img_buf, format="PNG")
         img_buf.seek(0)
 
-        # Gerar PDF com ReportLab
-        pdf_buf = io.BytesIO()
-        c = canvas.Canvas(pdf_buf, pagesize=A4)
-        page_width, page_height = A4
-        img_reader = ImageReader(img_buf)
-        c.drawImage(img_reader, 0, 0, width=page_width, height=page_height, preserveAspectRatio=True)
-        c.showPage()
-        c.save()
-        pdf_buf.seek(0)
-
-        # Botão de download do PDF
+        # Botão de download do PNG
         st.download_button(
-            "📥 Baixar resultado em PDF",
-            pdf_buf.read(),
-            file_name="analise_tinteiro.pdf",
-            mime="application/pdf"
+            label="🖼️ Baixar imagem em PNG",
+            data=img_buf,
+            file_name="analise_tinteiro.png",
+            mime="image/png"
         )
 
         # Gerar CSV com os dados
