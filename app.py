@@ -34,7 +34,7 @@ if st.button("Analisar") and pdf_file:
         # Desenhar imagem com linhas e porcentagens
         out = bin_img.convert("RGB")
         draw = ImageDraw.Draw(out)
-        font_size = int(sector_w * 0.8)
+        font_size = int(sector_w * 2)
         try:
             font = ImageFont.truetype("arial.ttf", font_size)
         except:
