@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import io
 import fitz  # PyMuPDF
+import zipfile
 
 st.set_page_config(page_title="Analisador de Tinteiro CMYK", layout="wide")
 st.title("🖨️ Analisador de Tinteiro - Offset Manual")
@@ -22,11 +23,11 @@ def calcular_setores(image, num_setores):
         setor = arr[:, start:end]
         soma = np.sum(setor)
         total = setor.size * 255
-        porcentagem = round(100 - (soma / total) * 100, 1)  # ← CORREÇÃO APLICADA
+        porcentagem = round(100 - (soma / total) * 100, 1)
         porcentagens.append(porcentagem)
     return porcentagens
 
-def desenhar_imagem(base_img, porcentagens):
+def desenhar_imagem(base_img, porcentagens, cor_nome="Preto"):
     arr = np.array(base_img)
     h, w = arr.shape
     num_setores = len(porcentagens)
@@ -40,6 +41,16 @@ def desenhar_imagem(base_img, porcentagens):
     except:
         font = ImageFont.load_default()
 
+    # Nome da cor no topo (5% da altura)
+    try:
+        bbox = draw.textbbox((0, 0), cor_nome, font=font)
+        _, _, tw, th = bbox
+    except:
+        tw, th = draw.textsize(cor_nome, font=font)
+    y_nome_cor = int(h * 0.05)
+    draw.text((10, y_nome_cor), cor_nome, fill="black", font=font)
+
+    # Porcentagens nos setores
     for i, pct in enumerate(porcentagens):
         x = i * sector_w
         draw.line([(x, 0), (x, h)], fill="red", width=1)
@@ -49,7 +60,9 @@ def desenhar_imagem(base_img, porcentagens):
             tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
         except:
             tw, th = draw.textsize(texto, font=font)
-        draw.text((x + (sector_w - tw) // 2, h - th - 10), texto, fill="blue", font=font)
+        y_text = int(h * 0.95 - th)
+        draw.text((x + (sector_w - tw) // 2, y_text), texto, fill="blue", font=font)
+
     return img_color
 
 if pdf_file and st.button("Analisar"):
@@ -61,7 +74,7 @@ if pdf_file and st.button("Analisar"):
         pix = page.get_pixmap(dpi=200)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples).convert("L")
         porcentagens = calcular_setores(img, n)
-        resultado = desenhar_imagem(img, porcentagens)
+        resultado = desenhar_imagem(img, porcentagens, cor_nome="Preto")
         st.image(resultado, caption="Canal Preto (K)", use_container_width=True)
 
         img_buf = io.BytesIO()
@@ -74,15 +87,23 @@ if pdf_file and st.button("Analisar"):
         img = Image.frombytes("CMYK", [pix.width, pix.height], pix.samples)
         canais = img.split()
         nomes = ["Ciano", "Magenta", "Amarelo", "Preto"]
-        cores = ["#00bcd4", "#e91e63", "#ffeb3b", "black"]
+        arquivos = []
 
-        for nome, canal, cor in zip(nomes, canais, cores):
+        for nome, canal in zip(nomes, canais):
             inverso = Image.eval(canal, lambda x: 255 - x)
             porcentagens = calcular_setores(inverso, n)
-            resultado = desenhar_imagem(inverso, porcentagens)
+            resultado = desenhar_imagem(inverso, porcentagens, cor_nome=nome)
             st.image(resultado, caption=f"Canal {nome}", use_container_width=True)
 
-            img_buf = io.BytesIO()
-            resultado.save(img_buf, format="PNG")
-            img_buf.seek(0)
-            st.download_button(f"🖼️ Baixar PNG do {nome}", img_buf, file_name=f"{nome.lower()}.png", mime="image/png")
+            buf = io.BytesIO()
+            resultado.save(buf, format="PNG")
+            buf.seek(0)
+            arquivos.append((f"{nome.lower()}.png", buf.read()))
+
+        # Empacotar tudo em um .zip
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+            for nome_arquivo, conteudo in arquivos:
+                zip_file.writestr(nome_arquivo, conteudo)
+        zip_buffer.seek(0)
+        st.download_button("📦 Baixar todas as imagens CMYK (.zip)", zip_buffer, file_name="analise_cmyk.zip", mime="application/zip")
