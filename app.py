@@ -38,7 +38,7 @@ if st.button("Analisar") and pdf_file:
         out = bin_img.convert("RGB")
         draw = ImageDraw.Draw(out)
 
-        # Fonte com tamanho fixo grande para garantir legibilidade
+        # Fonte com tamanho fixo grande
         try:
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
             font_size = 60
@@ -58,7 +58,7 @@ if st.button("Analisar") and pdf_file:
                 text_w, text_h = draw.textsize(text, font=font)
             draw.text((x + (sector_w - text_w) // 2, h - text_h - 10), text, fill="blue", font=font)
 
-        # Mostrar imagem
+        # Exibir imagem processada
         st.image(out, caption="Resultado com setores e porcentagens", use_container_width=True)
 
         # Salvar imagem em buffer PNG
@@ -66,17 +66,25 @@ if st.button("Analisar") and pdf_file:
         out.save(img_buf, format="PNG")
         img_buf.seek(0)
 
-        # Gerar PDF real com ReportLab
+        # Gerar PDF com ReportLab
         pdf_buf = io.BytesIO()
         c = canvas.Canvas(pdf_buf, pagesize=A4)
-        width, height = A4
+        page_width, page_height = A4
         img_reader = ImageReader(img_buf)
-        c.drawImage(img_reader, 0, 0, width=width, height=height, preserveAspectRatio=True, anchor='c')
+        c.drawImage(img_reader, 0, 0, width=page_width, height=page_height, preserveAspectRatio=True)
         c.showPage()
         c.save()
-        st.download_button("📥 Baixar resultado em PDF", pdf_buf.getvalue(), file_name="analise_tinteiro.pdf")
+        pdf_buf.seek(0)
 
-        # Gerar CSV
+        # Botão de download do PDF
+        st.download_button(
+            "📥 Baixar resultado em PDF",
+            pdf_buf.read(),
+            file_name="analise_tinteiro.pdf",
+            mime="application/pdf"
+        )
+
+        # Gerar CSV com os dados
         csv_buf = io.StringIO()
         writer = csv.writer(csv_buf)
         writer.writerow(["Setor", "Preenchimento Preto (%)"])
